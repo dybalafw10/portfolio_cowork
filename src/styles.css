@@ -604,12 +604,12 @@ footer > a {
 .constellation line {
   stroke: #a8b8ce;
   stroke-width: 0.8;
-  opacity: 0.23;
-  transition: opacity 300ms ease;
+  opacity: 0.2;
+  transition: opacity 350ms ease;
   vector-effect: non-scaling-stroke;
 }
-.constellation line.is-connected {
-  opacity: 0.43;
+.constellation .is-connected line {
+  opacity: 0.4;
 }
 @media (max-width: 1100px) {
   .hero {
@@ -660,7 +660,8 @@ footer > a {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .constellation line {
+  .constellation line,
+  .constellation circle {
     transition: none;
   }
 }
@@ -775,7 +776,8 @@ footer > a {
   html {
     scroll-snap-type: none;
   }
-  .constellation line {
+  .constellation line,
+  .constellation circle {
     transition: none;
   }
 }
@@ -786,7 +788,11 @@ footer > a {
 }
 .constellation circle {
   fill: #a8b8ce;
-  opacity: 0.3;
+  opacity: 0.28;
+  transition: opacity 350ms ease;
+}
+.constellation .is-connected circle {
+  opacity: 0.4;
 }
 .organization-field,
 .hero-bottom {

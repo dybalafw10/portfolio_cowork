@@ -75,16 +75,17 @@ test("Paperlogy 로딩, 연결선 및 실제 이미지 경로/실패 폴백", as
     );
   });
   expect(fontLoaded).toBe(true);
-  await expect(page.locator(".constellation line")).toHaveCount(7);
+  await expect(page.locator(".constellation line")).toHaveCount(19);
   const firstLine = page.locator(".constellation line").first();
-  const before = await firstLine.getAttribute("x1");
-  await page.waitForTimeout(350);
-  expect(await firstLine.getAttribute("x1")).not.toBe(before);
+  await expect(page.locator(".constellation")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
   await page
     .getByRole("button", { name: "기상기후인재개발원 수행 사업" })
     .hover({ force: true });
   await expect(page.locator(".constellation .is-connected")).toHaveCount(1);
-  await expect(firstLine).toHaveCSS("opacity", "0.43");
+  await expect(firstLine).toHaveCSS("opacity", "0.4");
   // A neutral one-pixel test image only; no invented organization logo is shipped.
   await page.route("**/logos/kma.png", (route) =>
     route.fulfill({
