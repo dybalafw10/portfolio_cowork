@@ -597,19 +597,19 @@ footer > a {
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
-  overflow: visible;
+  overflow: hidden;
 }
 .constellation line {
-  stroke: #b5c3d6;
+  stroke: #a8b8ce;
   stroke-width: 0.8;
-  opacity: 0.25;
+  opacity: 0.23;
   transition: opacity 300ms ease;
   vector-effect: non-scaling-stroke;
 }
 .constellation line.is-connected {
-  opacity: 0.6;
+  opacity: 0.43;
 }
 @media (max-width: 1100px) {
   .hero {
@@ -726,17 +726,6 @@ footer > a {
   color: #101f40;
   font-weight: 600;
 }
-.constellation {
-  overflow: hidden;
-}
-.constellation line {
-  stroke-width: 0.6;
-  opacity: 0.09;
-  transition: opacity 300ms ease;
-}
-.constellation line.is-connected {
-  opacity: 0.23;
-}
 @media (min-width: 1101px) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   html {
     scroll-snap-type: y proximity;
@@ -790,3 +779,17 @@ footer > a {
     transition: none;
   }
 }
+
+/* Explicit paint order, independent of negative stacking and future backgrounds. */
+.constellation:not([data-ready="true"]) {
+  visibility: hidden;
+}
+.constellation circle {
+  fill: #a8b8ce;
+  opacity: 0.3;
+}
+.organization-field,
+.hero-bottom {
+  z-index: 1;
+}
+/* .brand remains above the background and organization field at z-index:2. */
