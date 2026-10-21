@@ -84,7 +84,7 @@ test("Paperlogy 로딩, 연결선 및 실제 이미지 경로/실패 폴백", as
     .getByRole("button", { name: "기상기후인재개발원 수행 사업" })
     .hover({ force: true });
   await expect(page.locator(".constellation .is-connected")).toHaveCount(1);
-  await expect(firstLine).toHaveCSS("opacity", "0.23");
+  await expect(firstLine).toHaveCSS("opacity", "0.43");
   // A neutral one-pixel test image only; no invented organization logo is shipped.
   await page.route("**/logos/kma.png", (route) =>
     route.fulfill({
