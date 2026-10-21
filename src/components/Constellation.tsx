@@ -1,18 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { useReducedMotion } from "motion/react";
-
-// Disconnected, asymmetric fragments. Never form a perimeter or a shared network.
-const fragments = [
-  { id: "weather", dx: 36, dy: -27 },
-  { id: "ibk", dx: -28, dy: 39 },
-  { id: "kiat", dx: 48, dy: 19 },
-] as const;
-const independent = [
-  [0.075, 0.29, 0.105, 0.265],
-  [0.84, 0.12, 0.866, 0.15],
-  [0.6, 0.81, 0.64, 0.795],
-  [0.92, 0.67, 0.935, 0.71],
-];
+import { constellationClusters } from "../data/constellations";
 
 export function Constellation({
   container,
@@ -22,102 +9,120 @@ export function Constellation({
   active: string | null;
 }) {
   const svg = useRef<SVGSVGElement>(null);
-  const reduced = useReducedMotion();
   useEffect(() => {
     const root = container.current,
       layer = svg.current;
     if (!root || !layer) return;
-    let frame = 0,
-      visible = true,
-      disposed = false;
-    const lines = [...layer.querySelectorAll("line")];
-    const dots = [...layer.querySelectorAll("circle")];
-    const marks = fragments.map(({ id }) =>
-      root.querySelector<HTMLElement>(`[data-organization="${id}"]`),
+    let disposed = false,
+      frame = 0;
+    const organizations = constellationClusters.map((cluster) =>
+      root.querySelector<HTMLElement>(`.organization-${cluster.organization}`)!,
     );
+    const groups = [...layer.querySelectorAll<SVGGElement>("[data-cluster]")];
+    const brand = root.querySelector<HTMLElement>(".brand")!;
+    const footer = root.querySelector<HTMLElement>(".hero-bottom")!;
+    const header = document.querySelector<HTMLElement>(".navigation")!;
+
     const draw = () => {
+      if (disposed) return;
       const origin = layer.getBoundingClientRect();
       if (!origin.width || !origin.height) return;
-      const viewBox = `0 0 ${origin.width} ${origin.height}`;
-      if (layer.getAttribute("viewBox") !== viewBox)
-        layer.setAttribute("viewBox", viewBox);
-      const bounds = marks.map((mark) => mark?.getBoundingClientRect());
       const compact = origin.width <= 1100;
-      const brand = root.querySelector(".brand")!.getBoundingClientRect();
-      const field = root
-        .querySelector(".organization-field")!
-        .getBoundingClientRect();
-      const set = (
-        index: number,
-        x1: number,
-        y1: number,
-        x2: number,
-        y2: number,
-      ) => {
-        Object.entries({ x1, y1, x2, y2 }).forEach(([key, value]) =>
-          lines[index].setAttribute(key, String(value)),
-        );
-        dots[index].setAttribute("cx", String(x2));
-        dots[index].setAttribute("cy", String(y2));
-      };
-      fragments.forEach(({ dx, dy }, i) => {
+      const bounds = organizations.map((element) =>
+        element.getBoundingClientRect(),
+      );
+      const brandBottom = brand.offsetTop + brand.offsetHeight;
+      const footerBounds = footer.getBoundingClientRect();
+      // Header is fixed; use its height so scrolling the Hero does not change the layout.
+      const headerHeight = header.getBoundingClientRect().height;
+      const layouts = constellationClusters.map((cluster, i) => {
         const r = bounds[i];
-        if (!r) return;
-        if (compact && fragments[i].id === "kiat") {
-          const x = r.left + r.width / 2 - origin.x,
-            y = r.top - origin.y - 8;
-          set(i, x, y, x + 22, y - 24);
-          return;
+        const top = cluster.placement.startsWith("top");
+        const left = cluster.placement.endsWith("left");
+        let width = cluster.width,
+          height = cluster.height,
+          x: number,
+          y: number;
+        if (compact) {
+          width = Math.min(width, r.width - 24);
+          if (top) {
+            height = Math.min(
+              height,
+              Math.max(24, r.top - origin.y - brandBottom - 26),
+            );
+            y = r.top - origin.y - height - 14;
+          } else {
+            height = Math.min(
+              height,
+              Math.max(24, footerBounds.top - r.bottom - 24),
+            );
+            y = r.bottom - origin.y + 8;
+          }
+          x = r.left - origin.x + (r.width - width) / 2;
+        } else if (top) {
+          height = Math.min(
+            height,
+            Math.max(24, r.top - origin.y - headerHeight - 30),
+          );
+          x = r.left - origin.x + r.width / 2 - width * (left ? 0.72 : 0.28);
+          y = r.top - origin.y - height - 16;
+        } else {
+          // Below the title, outside the reserved logo/project text column.
+          const textWidth = 290;
+          const center = r.left - origin.x + r.width / 2;
+          const available = left
+            ? center - textWidth / 2 - 40
+            : origin.width - (center + textWidth / 2) - 40;
+          width = Math.min(width, Math.max(50, available));
+          x = left
+            ? center - textWidth / 2 - width - 16
+            : center + textWidth / 2 + 16;
+          y = r.top - origin.y + 8;
         }
-        const x = (dx > 0 ? r.right + 8 : r.left - 8) - origin.x;
-        const y = r.top + r.height / 2 - origin.y;
-        set(
-          i,
-          x,
-          y,
-          x + dx * (compact ? 0.55 : 1),
-          y + dy * (compact ? 0.8 : 1),
+        x = Math.max(12, Math.min(origin.width - width - 12, x));
+        y = Math.max(
+          headerHeight + 10,
+          Math.min(origin.height - height - 36, y),
         );
+        return { x, y, width, height };
       });
-      independent.forEach(([x1, y1, x2, y2], i) => {
-        let startY = y1 * origin.height,
-          endY = y2 * origin.height;
-        if (compact && i === 0) {
-          startY = brand.bottom - origin.y + 24;
-          endY = startY - 12;
-        }
-        if (compact && i === 1) {
-          startY = 100;
-          endY = 118;
-        }
-        if (compact && i === 2) {
-          startY = field.bottom - origin.y + 12;
-          endY = startY + 13;
-        }
-        set(
-          i + fragments.length,
-          x1 * origin.width,
-          startY,
-          x2 * origin.width,
-          endY,
+      layer.setAttribute("viewBox", `0 0 ${origin.width} ${origin.height}`);
+      constellationClusters.forEach((cluster, i) => {
+        const layout = layouts[i];
+        const positions = new Map(
+          cluster.nodes.map((node) => [
+            node.id,
+            {
+              x: layout.x + node.x * layout.width,
+              y: layout.y + node.y * layout.height,
+            },
+          ]),
         );
+        // Both lines and dots resolve from this exact same node map.
+        groups[i].querySelectorAll("circle").forEach((circle) => {
+          const node = positions.get(circle.dataset.node!)!;
+          circle.setAttribute("cx", String(node.x));
+          circle.setAttribute("cy", String(node.y));
+        });
+        groups[i].querySelectorAll("line").forEach((line) => {
+          const from = positions.get(line.dataset.from!)!,
+            to = positions.get(line.dataset.to!)!;
+          line.setAttribute("x1", String(from.x));
+          line.setAttribute("y1", String(from.y));
+          line.setAttribute("x2", String(to.x));
+          line.setAttribute("y2", String(to.y));
+        });
       });
       layer.setAttribute("data-ready", "true");
-      if (!reduced && visible && !disposed) frame = requestAnimationFrame(draw);
     };
     const refresh = () => {
       cancelAnimationFrame(frame);
-      if (!disposed) draw();
+      frame = requestAnimationFrame(draw);
     };
     const resize = new ResizeObserver(refresh);
-    resize.observe(root);
-    resize.observe(layer);
-    marks.forEach((mark) => mark && resize.observe(mark));
-    const intersection = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
-      refresh();
-    });
-    intersection.observe(root);
+    [layer, brand, footer, header, ...organizations].forEach((element) =>
+      resize.observe(element),
+    );
     window.addEventListener("resize", refresh);
     void document.fonts.ready.then(refresh);
     refresh();
@@ -125,10 +130,9 @@ export function Constellation({
       disposed = true;
       cancelAnimationFrame(frame);
       resize.disconnect();
-      intersection.disconnect();
       window.removeEventListener("resize", refresh);
     };
-  }, [container, reduced, active]);
+  }, [container]);
   return (
     <svg
       ref={svg}
@@ -140,18 +144,22 @@ export function Constellation({
       aria-hidden="true"
       focusable="false"
     >
-      {fragments.map(({ id }) => (
-        <line
-          key={id}
-          data-from={id}
-          className={active === id ? "is-connected" : undefined}
-        />
-      ))}
-      {independent.map((_, i) => (
-        <line key={`independent-${i}`} />
-      ))}
-      {[...fragments, ...independent].map((_, i) => (
-        <circle key={`point-${i}`} r="0.9" />
+      {constellationClusters.map((cluster) => (
+        <g
+          key={cluster.id}
+          data-cluster={cluster.id}
+          data-organization-link={cluster.organization}
+          className={
+            active === cluster.organization ? "is-connected" : undefined
+          }
+        >
+          {cluster.edges.map(([from, to]) => (
+            <line key={`${from}-${to}`} data-from={from} data-to={to} />
+          ))}
+          {cluster.nodes.map((node) => (
+            <circle key={node.id} data-node={node.id} r="1.7" />
+          ))}
+        </g>
       ))}
     </svg>
   );
