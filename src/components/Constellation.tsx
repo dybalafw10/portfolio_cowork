@@ -1,90 +1,94 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { useReducedMotion } from "motion/react";
 
-// An open center: only six perimeter connections, with no decorative nodes.
-const connections = [
-  ["weather", "science"],
-  ["science", "ibk"],
-  ["ibk", "mg"],
-  ["mg", "kiat"],
-  ["kiat", "seoul"],
-  ["seoul", "weather"],
+// Disconnected, asymmetric fragments. Never form a perimeter or a shared network.
+const fragments = [
+  { id: "weather", dx: 36, dy: -27 },
+  { id: "ibk", dx: -28, dy: 39 },
+  { id: "kiat", dx: 48, dy: 19 },
 ] as const;
+const independent = [
+  [0.075, 0.29, 0.105, 0.265],
+  [0.84, 0.12, 0.866, 0.15],
+  [0.6, 0.81, 0.64, 0.795],
+  [0.92, 0.67, 0.935, 0.71],
+];
 
-interface Props {
+export function Constellation({
+  container,
+  active,
+}: {
   container: RefObject<HTMLElement | null>;
   active: string | null;
-}
-
-export function Constellation({ container, active }: Props) {
+}) {
   const svg = useRef<SVGSVGElement>(null);
   const reduced = useReducedMotion();
-
   useEffect(() => {
-    const root = container.current;
-    const layer = svg.current;
+    const root = container.current,
+      layer = svg.current;
     if (!root || !layer) return;
-    let frame = 0;
-    let disposed = false;
-    const marks = new Map(
-      [...root.querySelectorAll<HTMLButtonElement>("[data-organization]")].map(
-        (mark) => [mark.dataset.organization!, mark],
-      ),
-    );
+    let frame = 0,
+      visible = true,
+      disposed = false;
     const lines = [...layer.querySelectorAll("line")];
-
+    const marks = fragments.map(({ id }) =>
+      root.querySelector<HTMLElement>(`[data-organization="${id}"]`),
+    );
     const draw = () => {
-      const origin = root.getBoundingClientRect();
-      // Read every layout rect before writing attributes. No React renders per frame.
-      const bounds = new Map(
-        [...marks].map(([id, mark]) => [id, mark.getBoundingClientRect()]),
-      );
-      connections.forEach(([from, to], index) => {
-        const a = bounds.get(from),
-          b = bounds.get(to);
-        if (!a || !b) return;
-        const ax = a.x + a.width / 2,
-          ay = a.y + a.height / 2;
-        const bx = b.x + b.width / 2,
-          by = b.y + b.height / 2;
-        const dx = bx - ax,
-          dy = by - ay;
-        // Stop just outside the actual transformed logo bounds, including hover scale.
-        const edge = (rect: DOMRect) =>
-          Math.min(
-            dx ? (rect.width / 2 + 10) / Math.abs(dx) : Infinity,
-            dy ? (rect.height / 2 + 10) / Math.abs(dy) : Infinity,
-            0.45,
-          );
-        const start = edge(a),
-          end = edge(b);
-        const line = lines[index];
-        line.setAttribute("x1", String(ax + dx * start - origin.x));
-        line.setAttribute("y1", String(ay + dy * start - origin.y));
-        line.setAttribute("x2", String(bx - dx * end - origin.x));
-        line.setAttribute("y2", String(by - dy * end - origin.y));
+      const origin = layer.getBoundingClientRect();
+      const bounds = marks.map((mark) => mark?.getBoundingClientRect());
+      const set = (
+        index: number,
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+      ) => {
+        Object.entries({ x1, y1, x2, y2 }).forEach(([key, value]) =>
+          lines[index].setAttribute(key, String(value)),
+        );
+      };
+      fragments.forEach(({ dx, dy }, i) => {
+        const r = bounds[i];
+        if (!r) return;
+        const x = (dx > 0 ? r.right + 8 : r.left - 8) - origin.x;
+        const y = r.top + r.height / 2 - origin.y;
+        set(i, x, y, x + dx, y + dy);
       });
-      if (!reduced && !disposed) frame = requestAnimationFrame(draw);
+      independent.forEach(([x1, y1, x2, y2], i) =>
+        set(
+          i + fragments.length,
+          x1 * origin.width,
+          y1 * origin.height,
+          x2 * origin.width,
+          y2 * origin.height,
+        ),
+      );
+      if (!reduced && visible && !disposed) frame = requestAnimationFrame(draw);
     };
     const refresh = () => {
-      if (!reduced || disposed) return;
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(draw);
+      if (!disposed) draw();
     };
-    draw();
-    const observer = new ResizeObserver(refresh);
-    observer.observe(root);
-    marks.forEach((mark) => observer.observe(mark));
+    const resize = new ResizeObserver(refresh);
+    resize.observe(root);
+    marks.forEach((mark) => mark && resize.observe(mark));
+    const intersection = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      refresh();
+    });
+    intersection.observe(root);
     window.addEventListener("resize", refresh);
     void document.fonts.ready.then(refresh);
+    refresh();
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
-      observer.disconnect();
+      resize.disconnect();
+      intersection.disconnect();
       window.removeEventListener("resize", refresh);
     };
   }, [container, reduced, active]);
-
   return (
     <svg
       ref={svg}
@@ -92,15 +96,15 @@ export function Constellation({ container, active }: Props) {
       aria-hidden="true"
       focusable="false"
     >
-      {connections.map(([from, to]) => (
+      {fragments.map(({ id }) => (
         <line
-          key={`${from}-${to}`}
-          data-from={from}
-          data-to={to}
-          className={
-            active === from || active === to ? "is-connected" : undefined
-          }
+          key={id}
+          data-from={id}
+          className={active === id ? "is-connected" : undefined}
         />
+      ))}
+      {independent.map((_, i) => (
+        <line key={`independent-${i}`} />
       ))}
     </svg>
   );
