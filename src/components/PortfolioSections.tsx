@@ -1,4 +1,50 @@
-import { contact, sections } from '../data/portfolio';
+import { contact, sections } from "../data/portfolio";
 export function PortfolioSections() {
-  return <>{sections.map(section => <section className="content-section" id={section.id} key={section.id}><div className="section-label"><span>{section.number} /</span><h2>{section.title}</h2></div><div className="section-content"><h3>{section.subtitle}</h3><p>{section.description}</p>{section.items && <ul>{section.items.map(item => <li key={item}>{item}</li>)}</ul>}{section.id === 'contact' && <div className="contact-links">{contact.email && <a href={`mailto:${contact.email}`}>{contact.email} ↗</a>}{contact.resume && <a href={`${import.meta.env.BASE_URL}${contact.resume}`} download>이력서 다운로드 ↓</a>}</div>}</div></section>)}<footer><a href="#home">COWORK.</a><span>사람과 조직, 그 사이의 가능성.</span><span>© {new Date().getFullYear()} COWORK.</span></footer></>;
+  return (
+    <>
+      {sections.map((section) => (
+        <section className="content-section" id={section.id} key={section.id}>
+          <div className="panel-content section-inner">
+            <div className="section-label">
+              <span>{section.number} /</span>
+              <h2>{section.title}</h2>
+            </div>
+            <div className="section-content">
+              <h3>{section.subtitle}</h3>
+              <p>{section.description}</p>
+              {section.items && (
+                <ul>
+                  {section.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              )}
+              {section.id === "contact" && (
+                <div className="contact-links">
+                  {contact.email && (
+                    <a href={`mailto:${contact.email}`}>{contact.email} ↗</a>
+                  )}
+                  {contact.resume && (
+                    <a
+                      href={`${import.meta.env.BASE_URL}${contact.resume}`}
+                      download
+                    >
+                      이력서 다운로드 ↓
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          {section.id === "contact" && (
+            <footer>
+              <a href="#home">COWORK.</a>
+              <span>사람과 조직, 그 사이의 가능성.</span>
+              <span>© {new Date().getFullYear()} COWORK.</span>
+            </footer>
+          )}
+        </section>
+      ))}
+    </>
+  );
 }
